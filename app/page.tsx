@@ -1,3 +1,6 @@
+// 로그아웃 상태에서는 layout이 children을 렌더링하지 않아 instant 검증 대상에서 빠진다.
+export const instant = false;
+
 import Image from "next/image";
 
 export default function Home() {
