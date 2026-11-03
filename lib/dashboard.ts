@@ -27,7 +27,7 @@ export type DashboardCategory = {
   count: number;
 };
 
-const ARTICLE_LIMIT = 100;
+export const ARTICLE_LIMIT = 100;
 
 // ?category=<id|none> 값을 필터로 바꾼다. 알 수 없는 값은 전체 보기로 처리한다.
 export function parseCategoryFilter(
@@ -40,29 +40,17 @@ export function parseCategoryFilter(
 }
 
 // 호출하는 쪽에서 Clerk userId를 확인한 뒤에만 부를 것. 모든 쿼리는 userId로 한정한다.
-export async function getDashboardData(userId: string, filter: CategoryFilter) {
-  const conditions: SQL[] = [eq(articles.userId, userId)];
-  if (filter.type === "none") conditions.push(isNull(articles.categoryId));
-  if (filter.type === "category")
-    conditions.push(eq(articles.categoryId, filter.id));
+export async function getDashboardData(
+  userId: string,
+  requestedFilter: CategoryFilter,
+) {
+  const fetchArticles = (filter: CategoryFilter) => {
+    const conditions: SQL[] = [eq(articles.userId, userId)];
+    if (filter.type === "none") conditions.push(isNull(articles.categoryId));
+    if (filter.type === "category")
+      conditions.push(eq(articles.categoryId, filter.id));
 
-  const [categoryRows, totals, articleRows] = await Promise.all([
-    db
-      .select({
-        id: categories.id,
-        name: categories.name,
-        count: count(articles.id),
-      })
-      .from(categories)
-      .leftJoin(articles, eq(articles.categoryId, categories.id))
-      .where(eq(categories.userId, userId))
-      .groupBy(categories.id, categories.name)
-      .orderBy(categories.name),
-    db
-      .select({ total: count(), categorized: count(articles.categoryId) })
-      .from(articles)
-      .where(eq(articles.userId, userId)),
-    db
+    return db
       .select({
         id: articles.id,
         sourceName: articles.sourceName,
@@ -79,16 +67,51 @@ export async function getDashboardData(userId: string, filter: CategoryFilter) {
       .leftJoin(categories, eq(articles.categoryId, categories.id))
       .where(and(...conditions))
       // 발행일 최신순. 발행일이 없는 기사는 뒤로 보내고, 같으면 수집 시각 순.
-      .orderBy(sql`${articles.publishedAt} desc nulls last`, desc(articles.createdAt))
-      .limit(ARTICLE_LIMIT),
+      .orderBy(
+        sql`${articles.publishedAt} desc nulls last`,
+        desc(articles.createdAt),
+      )
+      .limit(ARTICLE_LIMIT);
+  };
+
+  const [categoryRows, totals, requestedRows] = await Promise.all([
+    db
+      .select({
+        id: categories.id,
+        name: categories.name,
+        count: count(articles.id),
+      })
+      .from(categories)
+      .leftJoin(articles, eq(articles.categoryId, categories.id))
+      .where(eq(categories.userId, userId))
+      .groupBy(categories.id, categories.name)
+      .orderBy(categories.name),
+    db
+      .select({ total: count(), categorized: count(articles.categoryId) })
+      .from(articles)
+      .where(eq(articles.userId, userId)),
+    fetchArticles(requestedFilter),
   ]);
 
   const { total, categorized } = totals[0];
 
+  // 삭제됐거나 없는 카테고리 ID로 들어오면 전체 보기로 처리한다.
+  const unknownCategory =
+    requestedFilter.type === "category" &&
+    !categoryRows.some((c) => c.id === requestedFilter.id);
+  const filter: CategoryFilter = unknownCategory
+    ? { type: "all" }
+    : requestedFilter;
+  const articleRows = unknownCategory
+    ? await fetchArticles(filter)
+    : requestedRows;
+
   return {
+    filter,
     categories: categoryRows satisfies DashboardCategory[],
     total,
     uncategorized: total - categorized,
     articles: articleRows satisfies DashboardArticle[],
+    limited: articleRows.length >= ARTICLE_LIMIT,
   };
 }

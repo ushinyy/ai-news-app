@@ -4,8 +4,13 @@ export const instant = false;
 import { Suspense } from "react";
 import { auth } from "@clerk/nextjs/server";
 import { CategoryBar } from "@/components/category-bar";
+import { EmptyState } from "@/components/empty-state";
 import { NewsCard } from "@/components/news-card";
-import { getDashboardData, parseCategoryFilter } from "@/lib/dashboard";
+import {
+  ARTICLE_LIMIT,
+  getDashboardData,
+  parseCategoryFilter,
+} from "@/lib/dashboard";
 
 export default function DashboardPage({
   searchParams,
@@ -29,53 +34,91 @@ async function Dashboard({
   const { userId } = await auth();
   if (!userId) return null; // 로그인 모달은 layout이 처리한다.
 
-  const filter = parseCategoryFilter((await searchParams).category);
-  const data = await getDashboardData(userId, filter);
+  const data = await getDashboardData(
+    userId,
+    parseCategoryFilter((await searchParams).category),
+  );
+
+  // 기사도 카테고리도 하나도 없으면 카테고리 바 없이 안내만 보여 준다.
+  if (data.total === 0 && data.categories.length === 0) {
+    return (
+      <EmptyState
+        title="아직 수집한 뉴스가 없어요"
+        description="뉴스를 수집하면 이곳에 카드로 정리돼요."
+      />
+    );
+  }
 
   return (
-    <>
+    // 칩을 눌러 이동하는 동안(data-pending) 목록을 흐리게 해 반응을 보여 준다.
+    <div className="group/dash">
       <CategoryBar
         categories={data.categories}
         total={data.total}
         uncategorized={data.uncategorized}
-        filter={filter}
+        filter={data.filter}
       />
-      {data.articles.length === 0 ? (
-        <p className="py-20 text-center text-sm text-zinc-500 dark:text-zinc-400">
-          {data.total === 0
-            ? "아직 뉴스가 없어요. ‘뉴스 가져오기’로 첫 뉴스를 가져와 보세요."
-            : "이 카테고리에는 뉴스가 없어요."}
-        </p>
-      ) : (
-        <ul className="grid gap-4 pb-12 sm:grid-cols-2 lg:grid-cols-3">
-          {data.articles.map((article) => (
-            <NewsCard key={article.id} article={article} />
-          ))}
-        </ul>
-      )}
-    </>
+      <div className="transition-opacity delay-150 group-has-[[data-pending=true]]/dash:opacity-60">
+        {data.articles.length === 0 ? (
+          <EmptyState
+            title="이 카테고리에는 뉴스가 없어요"
+            description="다른 카테고리를 고르거나 전체 뉴스를 확인해 보세요."
+            action={{ href: "/dashboard", label: "전체 보기" }}
+          />
+        ) : (
+          <>
+            <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {data.articles.map((article) => (
+                <NewsCard key={article.id} article={article} />
+              ))}
+            </ul>
+            <p className="pb-12 pt-6 text-center text-xs text-zinc-500 dark:text-zinc-400">
+              {data.limited
+                ? `최신 ${ARTICLE_LIMIT}건까지 표시합니다.`
+                : `총 ${data.articles.length}건`}
+            </p>
+          </>
+        )}
+      </div>
+    </div>
   );
 }
 
+// 실제 화면(카테고리 바 + 카드 구조)을 본뜬 로딩 화면
 function DashboardSkeleton() {
+  const bar = "animate-pulse rounded bg-zinc-200 dark:bg-zinc-800";
   return (
-    <div aria-busy="true" aria-label="불러오는 중">
-      <div className="flex gap-2 py-6">
-        {[0, 1, 2].map((i) => (
-          <div
-            key={i}
-            className="h-9 w-20 animate-pulse rounded-full bg-zinc-200 dark:bg-zinc-800"
-          />
+    <div role="status">
+      <span className="sr-only">불러오는 중…</span>
+      <div aria-hidden className="flex flex-wrap gap-2 py-6">
+        {["w-20", "w-16", "w-24", "w-20", "w-28"].map((w, i) => (
+          <div key={i} className={`h-10 rounded-full sm:h-[34px] ${w} ${bar}`} />
         ))}
       </div>
-      <div className="grid gap-4 pb-12 sm:grid-cols-2 lg:grid-cols-3">
+      <ul aria-hidden className="grid gap-4 pb-12 sm:grid-cols-2 lg:grid-cols-3">
         {[0, 1, 2, 3, 4, 5].map((i) => (
-          <div
+          <li
             key={i}
-            className="h-52 animate-pulse rounded-xl border border-zinc-200 bg-zinc-100 dark:border-zinc-800 dark:bg-zinc-900"
-          />
+            className="flex flex-col rounded-xl border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-900"
+          >
+            <div className="flex items-center justify-between">
+              <div className={`h-5 w-16 rounded-full ${bar}`} />
+              <div className={`h-3 w-28 ${bar}`} />
+            </div>
+            <div className={`mt-4 h-4 w-11/12 ${bar}`} />
+            <div className={`mt-2 h-4 w-3/5 ${bar}`} />
+            <div className="mt-4 space-y-2">
+              <div className={`h-3 w-full ${bar}`} />
+              <div className={`h-3 w-full ${bar}`} />
+              <div className={`h-3 w-2/3 ${bar}`} />
+            </div>
+            <div className="mt-5 flex gap-2">
+              <div className={`h-11 w-20 rounded-lg sm:h-9 ${bar}`} />
+              <div className={`h-11 w-20 rounded-lg sm:h-9 ${bar}`} />
+            </div>
+          </li>
         ))}
-      </div>
+      </ul>
     </div>
   );
 }

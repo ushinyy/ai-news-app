@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { Suspense } from "react";
 import { ClerkProvider, Show, UserButton } from "@clerk/nextjs";
 import { Geist, Geist_Mono } from "next/font/google";
@@ -39,8 +40,13 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
               <SignInGate />
             </Show>
             <Show when="signed-in">
-              <header className="flex justify-end p-4">
-                <UserButton />
+              <header className="sticky top-0 z-10 border-b border-zinc-200 bg-white/80 backdrop-blur dark:border-zinc-800 dark:bg-zinc-900/80">
+                <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-4 sm:px-6">
+                  <h1 className="text-xl font-semibold tracking-tight">
+                    <Link href="/dashboard">AI 뉴스 수집기</Link>
+                  </h1>
+                  <UserButton />
+                </div>
               </header>
               {children}
             </Show>

@@ -1,7 +1,7 @@
 import type { DashboardArticle } from "@/lib/dashboard";
 
 const buttonBase =
-  "inline-flex items-center justify-center gap-1.5 rounded-lg px-3.5 py-2 text-sm font-medium transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 disabled:cursor-not-allowed disabled:opacity-50";
+  "inline-flex min-h-11 items-center justify-center gap-1.5 rounded-lg px-3.5 py-2 text-sm font-medium transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 disabled:cursor-not-allowed disabled:opacity-50 sm:min-h-0";
 
 const dateFormat = new Intl.DateTimeFormat("ko-KR", {
   timeZone: "Asia/Seoul",
@@ -26,13 +26,14 @@ export function NewsCard({ article }: { article: DashboardArticle }) {
 
   return (
     <li className="flex flex-col rounded-xl border border-zinc-200 bg-white p-5 transition hover:shadow-md dark:border-zinc-800 dark:bg-zinc-900">
-      <div className="flex items-center justify-between gap-2">
+      {/* 좁은 화면에서 뱃지와 출처·날짜가 부딪히면 줄바꿈하고, 긴 카테고리명은 말줄임 처리한다. */}
+      <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1">
         <span
-          className={
+          className={`max-w-full truncate rounded-full px-2.5 py-0.5 text-xs font-medium ${
             article.categoryName
-              ? "rounded-full bg-indigo-50 px-2.5 py-0.5 text-xs font-medium text-indigo-700 dark:bg-indigo-500/15 dark:text-indigo-300"
-              : "rounded-full bg-zinc-100 px-2.5 py-0.5 text-xs font-medium text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400"
-          }
+              ? "bg-indigo-50 text-indigo-700 dark:bg-indigo-500/15 dark:text-indigo-300"
+              : "bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400"
+          }`}
         >
           {article.categoryName ?? "미분류"}
         </span>
@@ -41,10 +42,10 @@ export function NewsCard({ article }: { article: DashboardArticle }) {
         </span>
       </div>
 
-      <h2 className="mt-3 line-clamp-2 text-base font-semibold leading-snug">
+      <h2 className="mt-3 line-clamp-2 break-words text-base font-semibold leading-snug">
         {article.titleKo}
       </h2>
-      <p className="mt-2 line-clamp-3 text-sm leading-relaxed text-zinc-600 dark:text-zinc-400">
+      <p className="mt-2 line-clamp-3 break-words text-sm leading-relaxed text-zinc-600 dark:text-zinc-400">
         {article.summaryKo}
       </p>
 
