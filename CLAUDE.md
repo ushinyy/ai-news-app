@@ -6,6 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 완료: Clerk 인증 연결(`proxy.ts`, 레이아웃 로그인 모달, `components/sign-in-gate.tsx`), DB 스키마(`db/schema.ts`)·Drizzle 클라이언트(`db/index.ts`)·마이그레이션(`drizzle/`)을 만들어 Neon(`ai-news` 프로젝트)에 반영, Neon MCP 연결(`.mcp.json`).
 미구현: `lib/`(RSS·Claude·Notion), API 라우트, 기사 카드 UI. 요구사항·데이터 모델·구조의 기준 문서는 `PRD.md`(한국어)다. 기능을 구현하기 전에 반드시 읽을 것.
+화면·UI를 만들거나 고칠 때는 `ui.md`(Tailwind 기반 UI 가이드: 대시보드 구성, 카테고리 바, 뉴스 카드, 버튼·상태 스타일)를 먼저 읽고 따른다.
 
 ## Next.js 주의
 
@@ -43,10 +44,6 @@ RSS(TechCrunch AI, The Verge AI) → Claude가 제목 번역·한국어 요약·
 
 - 값이 채워진 것: `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`, `CLERK_SECRET_KEY`, `DATABASE_URL`
 - 아직 비어 있는 것: `ANTHROPIC_API_KEY`, `NOTION_TOKEN`, `NOTION_DATABASE_ID`
-
-## 예제 데이터
-
-Neon DB에는 화면 확인용 예제 데이터(카테고리 3개, 기사 5개)가 들어 있다. 모두 가상의 기사이며 `user_id`는 임시값 `user_sample_001`이다. 실제 Clerk `userId`가 아니므로 로그인한 계정에서는 보이지 않는다. 실제 연동 전에 삭제하거나 본인 `userId`로 바꿀 것.
 
 ## 커밋 규칙
 
