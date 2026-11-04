@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import { callCategoryApi } from "@/components/category-api";
 import { CategoryChip } from "@/components/category-chip";
 import { CategoryNameInput } from "@/components/category-name-input";
+import { ConfirmDialog } from "@/components/confirm-dialog";
 import { normalizeCategoryName } from "@/lib/category-name";
 
 // 카테고리 칩. 편집 모드(editing)일 때만 오른쪽에 ⋯ 메뉴(이름 수정 등)가 붙고, 이때는 칩을 눌러도 이동하지 않는다.
@@ -24,6 +25,9 @@ export function ManagedCategoryChip({
 }) {
   const router = useRouter();
   const [renaming, setRenaming] = useState(false);
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
   const [menuRequested, setMenuRequested] = useState(false);
   const wrapperRef = useRef<HTMLSpanElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
@@ -81,6 +85,29 @@ export function ManagedCategoryChip({
     setRenaming(false);
     router.refresh();
     return null;
+  }
+
+  function openDeleteDialog() {
+    setMenuRequested(false);
+    setDeleteError(null);
+    setConfirmingDelete(true);
+  }
+
+  async function remove() {
+    setDeleting(true);
+    setDeleteError(null);
+    const result = await callCategoryApi(`/api/categories/${id}`, "DELETE");
+    // 이미 다른 곳에서 지워진 카테고리(404)는 원하는 결과와 같으므로 성공처럼 처리한다.
+    if (!result.ok && result.status !== 404) {
+      setDeleteError(result.error);
+      setDeleting(false);
+      return;
+    }
+    setConfirmingDelete(false);
+    setDeleting(false);
+    // 보고 있던 카테고리를 지웠다면 전체 보기로 돌아간다(page 파라미터도 함께 사라진다).
+    if (active) router.push("/dashboard");
+    router.refresh();
   }
 
   // 평소에는 이름 + 개수만 있는 원래 칩 모양이다.
@@ -148,7 +175,30 @@ export function ManagedCategoryChip({
           >
             이름 수정
           </button>
+          <button
+            type="button"
+            role="menuitem"
+            onClick={openDeleteDialog}
+            className="block min-h-10 w-full px-3.5 py-2 text-left text-red-600 hover:bg-red-50 focus-visible:bg-red-50 focus-visible:outline-none sm:min-h-0 dark:text-red-400 dark:hover:bg-red-950 dark:focus-visible:bg-red-950"
+          >
+            삭제
+          </button>
         </div>
+      )}
+      {confirmingDelete && (
+        <ConfirmDialog
+          title={`‘${name}’ 카테고리를 삭제할까요?`}
+          description={
+            count > 0
+              ? `이 카테고리의 기사 ${count}건은 삭제되지 않고 미분류로 이동해요.`
+              : "이 카테고리에는 기사가 없어요."
+          }
+          confirmLabel="삭제"
+          pending={deleting}
+          error={deleteError}
+          onConfirm={remove}
+          onCancel={() => setConfirmingDelete(false)}
+        />
       )}
     </span>
   );

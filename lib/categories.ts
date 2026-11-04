@@ -1,6 +1,6 @@
-import { and, eq } from "drizzle-orm";
+import { and, count, eq } from "drizzle-orm";
 import { db } from "@/db";
-import { categories } from "@/db/schema";
+import { articles, categories } from "@/db/schema";
 import {
   categoryKey,
   normalizeCategoryName,
@@ -101,4 +101,26 @@ export async function renameCategory(
     if (isUniqueViolation(error)) return DUPLICATE;
     throw error;
   }
+}
+
+// 카테고리를 지운다. 이 카테고리의 기사는 FK(onDelete: set null)에 따라 미분류로 옮겨진다.
+// 이동될 기사 수 조회와 삭제를 한 번의 batch(단일 트랜잭션)로 실행해 건수가 실제와 어긋나지 않게 한다.
+export async function deleteCategory(
+  userId: string,
+  id: number,
+): Promise<CategoryResult<{ unassigned: number }>> {
+  const [countRows, deleted] = await db.batch([
+    db
+      .select({ n: count() })
+      .from(articles)
+      .where(and(eq(articles.userId, userId), eq(articles.categoryId, id))),
+    db
+      .delete(categories)
+      .where(and(eq(categories.id, id), eq(categories.userId, userId)))
+      .returning({ id: categories.id }),
+  ]);
+  if (deleted.length === 0) {
+    return { ok: false, code: "not_found", message: "카테고리를 찾을 수 없어요." };
+  }
+  return { ok: true, value: { unassigned: countRows[0].n } };
 }
