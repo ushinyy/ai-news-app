@@ -30,7 +30,7 @@ npx drizzle-kit migrate    # 생성된 마이그레이션을 Neon(DATABASE_URL)�
 
 ## 아키텍처 (PRD 기준)
 
-RSS(TechCrunch AI, The Verge AI) → Claude가 제목 번역·한국어 요약·카테고리 생성 → Neon Postgres(Drizzle) 저장 → 카드 UI → 선택한 기사를 Notion DB에 저장. 이 중 RSS 수집·저장·카드 UI는 구현됐고 Claude·Notion 단계는 아직이다.
+RSS(TechCrunch AI, The Verge AI) → Claude가 제목 번역·한국어 요약·카테고리 생성 → Neon Postgres(Drizzle) 저장 → 카드 UI → 선택한 기사를 Notion DB에 저장. 이 중 RSS 수집·Claude 번역·요약·분류·저장·카드 UI·카테고리 관리는 구현됐고 Notion 저장 단계만 아직이다.
 
 - `lib/rss.ts` 피드 fetch·파싱·URL 정규화(구현), `lib/fetch-news.ts` 수집·중복 제거·저장(구현), `lib/dashboard.ts` 대시보드 조회·페이지 계산(구현), `lib/claude.ts` 기사를 묶어 요청해 `titleKo`·`summaryKo`·`category` 수신(구현). 예정: `lib/notion.ts` MCP 클라이언트로 `@notionhq/notion-mcp-server`를 호출해 페이지 생성. DB는 `db/schema.ts`·`db/index.ts`.
 - API: `fetch-news`, `categories`(추가·수정·삭제·병합)는 구현, `articles/[id]/notion`은 예정.

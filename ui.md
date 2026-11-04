@@ -32,7 +32,7 @@ Tailwind v4 기본 팔레트를 그대로 쓴다. 별도 설정 파일은 필요
 ┌──────────────────────────────────────────────┐
 │ AI 뉴스 수집기              [뉴스 가져오기] (👤) │  헤더 (sticky)
 ├──────────────────────────────────────────────┤
-│  [전체] [LLM] [로봇] [규제] ... [+ 카테고리]    │  카테고리 바
+│  [전체] [LLM] [로봇] ... [+ 카테고리] [편집]    │  카테고리 바
 │                                              │
 │  ┌────────┐  ┌────────┐  ┌────────┐          │
 │  │ 카드    │  │ 카드    │  │ 카드    │          │  카드 그리드
@@ -44,7 +44,7 @@ Tailwind v4 기본 팔레트를 그대로 쓴다. 별도 설정 파일은 필요
 
 ### 3.1 헤더
 
-현재 `app/layout.tsx`의 헤더(`UserButton`만 있음)를 대체한다. 로그인 모달과 `Show` 구조는 그대로 둔다.
+헤더는 `app/layout.tsx`에 있고, 앱 제목은 `/dashboard`로 가는 링크다. 로그인 모달과 `Show` 구조는 그대로 둔다.
 
 ```tsx
 <header className="sticky top-0 z-10 border-b border-zinc-200 bg-white/80 backdrop-blur dark:border-zinc-800 dark:bg-zinc-900/80">
@@ -62,15 +62,11 @@ Tailwind v4 기본 팔레트를 그대로 쓴다. 별도 설정 파일은 필요
 
 ### 3.2 카테고리 바 (카드 목록 바로 위)
 
-카테고리 칩을 한 줄로 늘어놓고, **맨 끝에 `+ 카테고리` 추가 버튼**을 둔다. 칩이 많아지면 줄바꿈한다(`flex-wrap`). 가로 스크롤은 쓰지 않는다.
+카테고리 칩을 한 줄로 늘어놓고, 칩 뒤에 **`+ 카테고리` 추가 버튼**과 **`편집`/`완료` 버튼**을 차례로 둔다. 칩이 많아지면 줄바꿈한다(`flex-wrap`). 가로 스크롤은 쓰지 않는다. 기사·카테고리가 하나도 없어도 이 바는 보여서 첫 카테고리를 만들 수 있다.
 
 ```tsx
 <nav aria-label="카테고리" className="flex flex-wrap items-center gap-2 py-6">
-  <CategoryChip active>전체</CategoryChip>
-  <CategoryChip>LLM</CategoryChip>
-  <CategoryChip>로봇</CategoryChip>
-  {/* ... */}
-  <AddCategoryButton />   {/* 항상 마지막 */}
+  <CategoryChips ... />   {/* 전체 · 미분류 · 카테고리 칩 · + 카테고리 · 편집/완료. 편집 상태를 한 클라이언트 컴포넌트가 가진다 */}
 </nav>
 ```
 
@@ -78,8 +74,20 @@ Tailwind v4 기본 팔레트를 그대로 쓴다. 별도 설정 파일은 필요
 - **칩 (선택됨):** `border-indigo-600 bg-indigo-600 text-white hover:bg-indigo-700 dark:border-indigo-500 dark:bg-indigo-500`, 그리고 `aria-pressed="true"`.
 - **칩 안의 개수:** 이름 뒤에 `ml-1.5 text-xs opacity-60`으로 기사 수를 붙인다. 예: `LLM 12`.
 - **`+ 카테고리` 버튼:** 점선 테두리로 칩과 구분한다. `rounded-full border border-dashed border-zinc-300 px-3.5 py-1.5 text-sm text-zinc-500 transition hover:border-indigo-500 hover:text-indigo-600 dark:border-zinc-700 dark:hover:border-indigo-400 dark:hover:text-indigo-400`
-- 누르면 칩 자리에서 입력창으로 바뀌는 인라인 입력(`rounded-full border px-3.5 py-1.5 text-sm`, 자동 포커스)을 쓴다. `Enter`로 추가, `Esc`로 취소한다. 이름 수정·삭제·병합은 칩의 더보기 메뉴(호버 시 `⋯`)에서 연다.
+- 누르면 칩 자리에서 입력창으로 바뀌는 인라인 입력(`rounded-full border px-3.5 py-1.5 text-sm`, 자동 포커스)을 쓴다. `Enter`로 추가, `Esc`나 바깥 클릭으로 취소한다. 한글 조합 중의 `Enter`는 제출로 보지 않는다. 오류(빈 이름·31자 이상·중복)는 입력창 아래 `text-xs text-red-600 dark:text-red-400`로 보여 준다.
 - "미분류" 기사가 있으면 `전체` 다음에 `미분류` 칩을 보여 준다.
+
+**편집 모드 (`편집` / `완료` 버튼)**
+
+수정·삭제·병합은 평소에는 숨겨 두고, `+ 카테고리` 옆의 `편집` 버튼으로 편집 모드에 들어가서 한다.
+
+- **평소:** 칩은 이름 + 개수만 보인다. `⋯` 자리도, 오른쪽 여백도 없다.
+- **`편집` 버튼:** 칩보다 덜 눈에 띄는 텍스트 버튼(`rounded-full px-3 py-1.5 text-sm font-medium text-zinc-500 hover:text-indigo-600`)이고 `aria-pressed`를 단다. 누르면 `완료`로 바뀌며 연한 인디고(`bg-indigo-50 text-indigo-700 dark:bg-indigo-500/15 dark:text-indigo-300`)가 된다. 카테고리가 하나도 없으면 숨긴다.
+- **편집 모드:** **카테고리 칩에만** 오른쪽에 `⋯` 메뉴 버튼(`aria-label="<이름> 카테고리 메뉴"`)이 붙는다. `전체`·`미분류`에는 붙이지 않는다. 모바일·데스크톱이 같다(호버로 나타나지 않는다). 실수로 이동하지 않도록 **모든 칩(`전체`·`미분류` 포함)이 링크가 아니라 같은 모양의 `<span>`**이 되어 눌러도 필터가 바뀌지 않는다. `완료`를 누르면 열려 있던 메뉴도 닫힌다. 편집할 카테고리가 없어지면 자동으로 편집 모드가 풀린다.
+- **`⋯` 메뉴** (`role="menu"`, `rounded-lg border bg-white shadow-md`, 방향키로 항목 이동, `Esc`·바깥 클릭으로 닫힘): `이름 수정` → `다른 카테고리로 병합` → `삭제`(빨간 글씨 `text-red-600 dark:text-red-400`). 다른 카테고리가 없으면 `병합`은 비활성이다.
+- **이름 수정:** 칩 자리가 추가와 같은 인라인 입력으로 바뀐다(`Enter` 저장, `Esc` 취소). 이름이 그대로면 요청 없이 닫는다.
+- **삭제·병합 확인창** (네이티브 `<dialog>`, `rounded-xl border bg-white shadow-xl`, 뒷배경 `backdrop:bg-black/40`): 제목은 `‘이름’ 카테고리를 삭제할까요?`/`병합할까요?`, 본문에 영향받는 기사 수를 적는다. 삭제는 "기사 N건은 삭제되지 않고 미분류로 이동해요", 병합은 대상 카테고리를 `<select>`로 고른 뒤 "‘A’의 기사 N건을 ‘B’(으)로 옮기고, ‘A’ 카테고리는 삭제해요"라고 보여 준다. 포커스는 `취소`에서 시작하고 `Esc`·바깥 클릭은 취소다. 실행 버튼은 위험 동작 스타일(`bg-red-600 text-white hover:bg-red-700 dark:bg-red-500 dark:hover:bg-red-400`)이며 병합은 대상을 고르기 전까지 비활성이다. 요청 중에는 `처리 중…`과 비활성 상태이고 닫히지 않는다. 실패하면 확인창 안에 오류 배너(§5 오류 스타일)를 보여 준다.
+- 보고 있던 카테고리를 삭제하거나 병합해 없애면 `전체` 보기로 돌아간다.
 
 ### 3.3 뉴스 카드 그리드
 
@@ -143,8 +151,8 @@ PRD 5.5의 구성(한국어 제목, 요약, 출처, 발행일, 카테고리 뱃�
 | 상태 | 표시 |
 |---|---|
 | 가져오는 중 | 헤더 버튼 스피너. 목록이 비어 있으면 카드 모양 스켈레톤 6개(`animate-pulse`, `bg-zinc-200 dark:bg-zinc-800` 막대)를 그리드에 표시 |
-| 기사 없음 (처음) | 가운데 정렬 안내: "아직 뉴스가 없어요. 오른쪽 위 ‘뉴스 가져오기’를 눌러 보세요." (`text-sm text-zinc-500`, 위아래 `py-20`) |
-| 필터 결과 없음 | "이 카테고리에는 뉴스가 없어요." |
+| 기사 없음 (처음) | 카테고리 바(`전체 0` 칩과 `+ 카테고리`)는 그대로 보이고, 그 아래에 가운데 정렬 안내: "아직 수집한 뉴스가 없어요 / 뉴스를 수집하면 이곳에 카드로 정리돼요." (`components/empty-state.tsx`) |
+| 필터 결과 없음 | "이 카테고리에는 뉴스가 없어요" + `전체 보기` 링크 |
 | 새 뉴스 없음 | "새 뉴스 없음" 한 줄 안내 |
 | 오류 | `rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900 dark:bg-red-950 dark:text-red-300` 배너 |
 
@@ -156,14 +164,25 @@ PRD 5.5의 구성(한국어 제목, 요약, 출처, 발행일, 카테고리 뱃�
 - 포커스 링을 지우지 않는다(`focus-visible:` 스타일 유지).
 - 글자와 배경의 대비는 WCAG AA(4.5:1)를 유지한다. 보조 글자(`zinc-500`)는 12px 미만으로 쓰지 않는다.
 
-## 7. 컴포넌트 파일 배치 (제안)
+## 7. 컴포넌트 파일 배치
 
 | 파일 | 역할 |
 |---|---|
-| `app/page.tsx` | 대시보드. 카테고리 바와 카드 그리드 조립 |
-| `components/header.tsx` | 앱 제목, 뉴스 가져오기, 사용자 메뉴 |
-| `components/category-bar.tsx` | 카테고리 칩 목록과 추가 버튼 |
+| `app/page.tsx` | `/`를 `/dashboard`로 보낸다 |
+| `app/dashboard/page.tsx` | 대시보드. 카테고리 바, 카드 그리드, 페이지 나누기, 로딩 스켈레톤, 빈 화면 조립 |
+| `app/layout.tsx` | 헤더(앱 제목, `뉴스 가져오기`, 사용자 메뉴)와 로그인 모달(`Show` 구조) |
+| `components/fetch-news-button.tsx` | `뉴스 가져오기` 버튼과 결과 안내 |
+| `components/category-bar.tsx` | `<nav>` 틀(서버 컴포넌트). 안쪽은 `CategoryChips` |
+| `components/category-chips.tsx` | 칩 줄 전체와 `편집`/`완료`, 편집 모드 상태 |
+| `components/category-chip.tsx` | 칩 하나. 편집 모드에서는 링크 대신 `<span>` |
+| `components/managed-category-chip.tsx` | 카테고리 칩 + `⋯` 메뉴(이름 수정·병합·삭제)와 확인창 연결 |
+| `components/add-category.tsx` | `+ 카테고리` 버튼과 인라인 입력 |
+| `components/category-name-input.tsx` | 추가·이름 수정이 함께 쓰는 인라인 입력창 |
+| `components/confirm-dialog.tsx` | 삭제·병합 확인창 |
+| `components/category-api.ts` | 카테고리 API 호출 헬퍼 |
 | `components/news-card.tsx` | 뉴스 카드 |
-| `components/ui/button.tsx` | §4의 버튼 변형 |
+| `components/pagination.tsx` | 페이지 나누기 |
+| `components/empty-state.tsx` | 빈 화면 안내 |
+| `components/sign-in-gate.tsx` | 로그인 안내 |
 
-이미 있는 `components/sign-in-gate.tsx`와 `app/layout.tsx`의 `Show` 구조는 유지한다.
+버튼 변형(§4)을 모으는 `components/ui/button.tsx` 같은 공용 컴포넌트는 아직 없고, 각 컴포넌트가 해당 클래스를 직접 쓴다. 서버 컴포넌트에서 클라이언트 컴포넌트로 함수를 props로 넘길 수 없으니, 클라이언트 컴포넌트는 직렬화되는 값(id·이름·개수 등)만 받는다.
