@@ -1,4 +1,4 @@
-import { and, count, eq } from "drizzle-orm";
+import { and, count, eq, inArray } from "drizzle-orm";
 import { db } from "@/db";
 import { articles, categories } from "@/db/schema";
 import {
@@ -123,4 +123,61 @@ export async function deleteCategory(
     return { ok: false, code: "not_found", message: "카테고리를 찾을 수 없어요." };
   }
   return { ok: true, value: { unassigned: countRows[0].n } };
+}
+
+function isForeignKeyViolation(error: unknown) {
+  const code =
+    (error as { code?: string })?.code ??
+    (error as { cause?: { code?: string } })?.cause?.code;
+  return code === "23503";
+}
+
+// sourceId의 기사를 모두 targetId로 옮기고 sourceId 카테고리를 지운다.
+// 기사 이동과 카테고리 삭제는 한 번의 batch(단일 트랜잭션)로 실행해, 중간에 실패하면 둘 다 취소된다.
+export async function mergeCategories(
+  userId: string,
+  sourceId: number,
+  targetId: number,
+): Promise<CategoryResult<{ moved: number; targetId: number }>> {
+  if (sourceId === targetId) {
+    return {
+      ok: false,
+      code: "invalid",
+      message: "같은 카테고리로는 병합할 수 없어요.",
+    };
+  }
+  const notFound = {
+    ok: false,
+    code: "not_found",
+    message: "카테고리를 찾을 수 없어요.",
+  } as const;
+
+  // 두 카테고리 모두 이 사용자의 것이어야 한다.
+  const mine = await db
+    .select({ id: categories.id })
+    .from(categories)
+    .where(
+      and(eq(categories.userId, userId), inArray(categories.id, [sourceId, targetId])),
+    );
+  if (mine.length !== 2) return notFound;
+
+  try {
+    const [movedRows, deleted] = await db.batch([
+      db
+        .update(articles)
+        .set({ categoryId: targetId })
+        .where(and(eq(articles.userId, userId), eq(articles.categoryId, sourceId)))
+        .returning({ id: articles.id }),
+      db
+        .delete(categories)
+        .where(and(eq(categories.id, sourceId), eq(categories.userId, userId)))
+        .returning({ id: categories.id }),
+    ]);
+    if (deleted.length === 0) return notFound;
+    return { ok: true, value: { moved: movedRows.length, targetId } };
+  } catch (error) {
+    // 확인 직후 대상 카테고리가 지워졌다면 FK 위반이 나며 batch 전체가 취소된다.
+    if (isForeignKeyViolation(error)) return notFound;
+    throw error;
+  }
 }

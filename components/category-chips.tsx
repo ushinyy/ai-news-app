@@ -49,6 +49,9 @@ export function CategoryChips({
           count={category.count}
           active={filter.type === "category" && filter.id === category.id}
           editing={editing}
+          mergeTargets={categories
+            .filter((c) => c.id !== category.id)
+            .map((c) => ({ id: c.id, name: c.name }))}
         />
       ))}
       <AddCategory />

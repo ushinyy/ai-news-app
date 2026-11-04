@@ -16,18 +16,24 @@ export function ManagedCategoryChip({
   count,
   active,
   editing,
+  mergeTargets,
 }: {
   id: number;
   name: string;
   count: number;
   active: boolean;
   editing: boolean;
+  mergeTargets: { id: number; name: string }[];
 }) {
   const router = useRouter();
   const [renaming, setRenaming] = useState(false);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [confirmingMerge, setConfirmingMerge] = useState(false);
+  const [merging, setMerging] = useState(false);
+  const [mergeError, setMergeError] = useState<string | null>(null);
+  const [mergeTargetId, setMergeTargetId] = useState("");
   const [menuRequested, setMenuRequested] = useState(false);
   const wrapperRef = useRef<HTMLSpanElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
@@ -110,6 +116,36 @@ export function ManagedCategoryChip({
     router.refresh();
   }
 
+  const mergeTarget = mergeTargets.find((t) => String(t.id) === mergeTargetId);
+
+  function openMergeDialog() {
+    setMenuRequested(false);
+    setMergeError(null);
+    setMergeTargetId("");
+    setConfirmingMerge(true);
+  }
+
+  async function merge() {
+    if (!mergeTarget) return;
+    setMerging(true);
+    setMergeError(null);
+    const result = await callCategoryApi(`/api/categories/${id}/merge`, "POST", {
+      targetId: mergeTarget.id,
+    });
+    if (!result.ok) {
+      setMergeError(result.error);
+      setMerging(false);
+      // 다른 곳에서 카테고리가 이미 바뀐 경우(404)에는 목록을 새로 불러와 칩을 맞춘다.
+      if (result.status === 404) router.refresh();
+      return;
+    }
+    setConfirmingMerge(false);
+    setMerging(false);
+    // 보고 있던 카테고리를 병합해 없앴다면 전체 보기로 돌아간다(page 파라미터도 함께 사라진다).
+    if (active) router.push("/dashboard");
+    router.refresh();
+  }
+
   // 평소에는 이름 + 개수만 있는 원래 칩 모양이다.
   if (!editing) {
     return (
@@ -178,12 +214,60 @@ export function ManagedCategoryChip({
           <button
             type="button"
             role="menuitem"
+            disabled={mergeTargets.length === 0}
+            title={mergeTargets.length === 0 ? "병합할 다른 카테고리가 없어요" : undefined}
+            onClick={openMergeDialog}
+            className="block min-h-10 w-full px-3.5 py-2 text-left text-zinc-700 hover:bg-zinc-100 focus-visible:bg-zinc-100 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-transparent sm:min-h-0 dark:text-zinc-200 dark:hover:bg-zinc-800 dark:focus-visible:bg-zinc-800 dark:disabled:hover:bg-transparent"
+          >
+            다른 카테고리로 병합
+          </button>
+          <button
+            type="button"
+            role="menuitem"
             onClick={openDeleteDialog}
             className="block min-h-10 w-full px-3.5 py-2 text-left text-red-600 hover:bg-red-50 focus-visible:bg-red-50 focus-visible:outline-none sm:min-h-0 dark:text-red-400 dark:hover:bg-red-950 dark:focus-visible:bg-red-950"
           >
             삭제
           </button>
         </div>
+      )}
+      {confirmingMerge && (
+        <ConfirmDialog
+          title={`‘${name}’ 카테고리를 병합할까요?`}
+          description={
+            mergeTarget
+              ? `‘${name}’의 기사 ${count}건을 ‘${mergeTarget.name}’(으)로 옮기고, ‘${name}’ 카테고리는 삭제해요.`
+              : `‘${name}’의 기사 ${count}건을 옮길 카테고리를 고르면, ‘${name}’ 카테고리는 삭제돼요.`
+          }
+          confirmLabel="병합"
+          pending={merging}
+          confirmDisabled={!mergeTarget}
+          error={mergeError}
+          onConfirm={merge}
+          onCancel={() => setConfirmingMerge(false)}
+        >
+          <label className="mt-4 block text-sm font-medium">
+            옮길 카테고리
+            <select
+              value={mergeTargetId}
+              disabled={merging}
+              onChange={(e) => {
+                setMergeTargetId(e.target.value);
+                setMergeError(null);
+              }}
+              className="mt-1.5 block min-h-10 w-full rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 disabled:opacity-50 sm:min-h-0 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100"
+            >
+              <option value="" disabled>
+                카테고리를 선택하세요
+              </option>
+              {mergeTargets.map((t) => (
+                <option key={t.id} value={t.id}>
+                  {t.name}
+                </option>
+              ))}
+            </select>
+          </label>
+        </ConfirmDialog>
       )}
       {confirmingDelete && (
         <ConfirmDialog
