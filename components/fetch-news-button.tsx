@@ -6,7 +6,7 @@ import { useState, useTransition } from "react";
 type Status =
   | { kind: "idle" }
   | { kind: "empty"; failed: string[] }
-  | { kind: "added"; count: number; failed: string[] }
+  | { kind: "added"; count: number; failed: string[]; notes: string }
   | { kind: "error"; message: string };
 
 export function FetchNewsButton() {
@@ -24,6 +24,8 @@ export function FetchNewsButton() {
       const body = (await res.json().catch(() => null)) as {
         added?: number;
         failedFeeds?: string[];
+        failedArticles?: number;
+        remaining?: number;
         error?: string;
       } | null;
       if (!res.ok) {
@@ -35,9 +37,17 @@ export function FetchNewsButton() {
       }
       const added = body?.added ?? 0;
       const failed = body?.failedFeeds ?? [];
+      const notes = [
+        body?.failedArticles
+          ? `${body.failedArticles}건은 처리 실패, 다음에 재시도`
+          : "",
+        body?.remaining ? `${body.remaining}건은 다음 가져오기에서 처리` : "",
+      ]
+        .filter(Boolean)
+        .join(", ");
       setStatus(
         added > 0
-          ? { kind: "added", count: added, failed }
+          ? { kind: "added", count: added, failed, notes }
           : { kind: "empty", failed },
       );
       if (added > 0) startRefresh(() => router.refresh());
@@ -59,6 +69,7 @@ export function FetchNewsButton() {
       >
         {status.kind === "empty" && "새 뉴스 없음"}
         {status.kind === "added" && `새 뉴스 ${status.count}건`}
+        {status.kind === "added" && status.notes && ` (${status.notes})`}
         {(status.kind === "empty" || status.kind === "added") &&
           status.failed.length > 0 &&
           ` (${status.failed.join(", ")} 불러오기 실패)`}

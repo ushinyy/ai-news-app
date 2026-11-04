@@ -17,6 +17,13 @@ export async function POST() {
         { status: 502 },
       );
     }
+    // 새 기사는 있었지만 번역·요약·분류가 전부 실패한 경우.
+    if (result.added === 0 && result.failedArticles > 0) {
+      return Response.json(
+        { error: "번역·요약에 실패했어요. 잠시 후 다시 시도해 주세요." },
+        { status: 502 },
+      );
+    }
     return Response.json(result);
   } catch (error) {
     console.error("fetch-news 실패", error);

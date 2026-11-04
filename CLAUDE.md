@@ -5,7 +5,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## 현재 상태
 
 완료: Clerk 인증 연결(`proxy.ts`, 레이아웃 로그인 모달, `components/sign-in-gate.tsx`), DB 스키마(`db/schema.ts`)·Drizzle 클라이언트(`db/index.ts`)·마이그레이션(`drizzle/`)을 만들어 Neon(`ai-news` 프로젝트)에 반영, Neon MCP 연결(`.mcp.json`).
-미구현: `lib/`(RSS·Claude·Notion), API 라우트, 기사 카드 UI. 요구사항·데이터 모델·구조의 기준 문서는 `PRD.md`(한국어)다. 기능을 구현하기 전에 반드시 읽을 것.
+완료(화면): 대시보드(`app/dashboard/page.tsx`: 카테고리 바, 카드 그리드, 로딩 스켈레톤, 빈 화면), 뉴스 카드, 헤더의 `뉴스 가져오기` 버튼(`components/fetch-news-button.tsx`), 페이지 나누기(페이지당 9건, `components/pagination.tsx`, `?page=N`이 `?category=`와 함께 유지됨, 데이터는 `lib/dashboard.ts`).
+완료(수집): `뉴스 가져오기` → `POST /api/fetch-news` → `lib/fetch-news.ts`의 `collectNews`가 `lib/rss.ts`로 TechCrunch AI·The Verge AI에서 **최근 24시간** 기사만 읽어(발행일 없는 항목 제외, 피드 하나가 실패해도 나머지는 저장) DB에 없는 URL만 insert한다.
+완료(Claude): `collectNews`가 DB에 없는 URL만 최신순 30건까지 10건씩 배치로 `lib/claude.ts`의 `enrichArticles`(Haiku `claude-haiku-5-5`, 강제 tool use)에 보내 `titleKo`·`summaryKo`·카테고리를 받아 저장한다. 기존 카테고리는 프롬프트로 넘겨 재사용하고 새 이름만 `categories`에 만든다. 배치가 실패하면 그 기사들은 저장하지 않아 다음 가져오기에서 재시도된다(`failedArticles`), 30건 초과분은 `remaining`으로 알린다. `ANTHROPIC_API_KEY`가 필요하다.
+미구현: `lib/notion.ts`, API `articles/[id]/notion`·`categories`. 화면에서는 카드의 `저장하기`와 카테고리 바의 `+ 카테고리`가 비활성 상태다. 요구사항·데이터 모델·구조의 기준 문서는 `PRD.md`(한국어)다. 기능을 구현하기 전에 반드시 읽을 것.
 화면·UI를 만들거나 고칠 때는 `ui.md`(Tailwind 기반 UI 가이드: 대시보드 구성, 카테고리 바, 뉴스 카드, 버튼·상태 스타일)를 먼저 읽고 따른다.
 
 ## Next.js 주의
@@ -24,12 +27,14 @@ npx drizzle-kit migrate    # 생성된 마이그레이션을 Neon(DATABASE_URL)�
 
 테스트 러너는 아직 설정되어 있지 않다. 프레임워크: App Router, TypeScript, Tailwind v4, import alias `@/*`, `src/` 없음(`app/`이 루트).
 
-## 아키텍처 (PRD 기준, 구현 예정)
+## 아키텍처 (PRD 기준)
 
-RSS(TechCrunch AI, The Verge AI) → Claude가 제목 번역·한국어 요약·카테고리 생성 → Neon Postgres(Drizzle) 저장 → 카드 UI → 선택한 기사를 Notion DB에 저장.
+RSS(TechCrunch AI, The Verge AI) → Claude가 제목 번역·한국어 요약·카테고리 생성 → Neon Postgres(Drizzle) 저장 → 카드 UI → 선택한 기사를 Notion DB에 저장. 이 중 RSS 수집·저장·카드 UI는 구현됐고 Claude·Notion 단계는 아직이다.
 
-- `lib/rss.ts` 피드 fetch·파싱, `lib/claude.ts` 기사를 묶어 요청해 JSON(`titleKo`, `summaryKo`, `category`) 수신, `lib/notion.ts` MCP 클라이언트로 `@notionhq/notion-mcp-server`를 호출해 페이지 생성, `db/schema.ts`·`db/index.ts`.
-- API: `fetch-news`, `articles/[id]/notion`, `categories`.
+- `lib/rss.ts` 피드 fetch·파싱·URL 정규화(구현), `lib/fetch-news.ts` 수집·중복 제거·저장(구현), `lib/dashboard.ts` 대시보드 조회·페이지 계산(구현), `lib/claude.ts` 기사를 묶어 요청해 `titleKo`·`summaryKo`·`category` 수신(구현). 예정: `lib/notion.ts` MCP 클라이언트로 `@notionhq/notion-mcp-server`를 호출해 페이지 생성. DB는 `db/schema.ts`·`db/index.ts`.
+- API: `fetch-news`(구현), `articles/[id]/notion`·`categories`(예정).
+- 페이지네이션 URL 규칙: `/dashboard?category=<id|none>&page=<n>`. 1페이지는 `page`를 생략하고, 범위를 넘은 `page`는 마지막 페이지로 맞춘다. 목록 정렬은 발행일 최신순(`published_at desc nulls last`, `created_at`, `id`).
+- 서버 컴포넌트에서 클라이언트 컴포넌트로 함수를 props로 넘길 수 없다(예: `Pagination`은 href를 안에서 만든다).
 - 모든 페이지·API는 Clerk 로그인 필수이고, 모든 데이터는 Clerk `userId`로 분리한다.
 
 ### 핵심 규칙 (여러 파일에 걸침)
@@ -42,8 +47,8 @@ RSS(TechCrunch AI, The Verge AI) → Claude가 제목 번역·한국어 요약·
 
 ## 환경변수 (`.env.local`, git 제외)
 
-- 값이 채워진 것: `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`, `CLERK_SECRET_KEY`, `DATABASE_URL`
-- 아직 비어 있는 것: `ANTHROPIC_API_KEY`, `NOTION_TOKEN`, `NOTION_DATABASE_ID`
+- 값이 채워진 것: `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`, `CLERK_SECRET_KEY`, `DATABASE_URL`, `ANTHROPIC_API_KEY`
+- 아직 비어 있는 것: `NOTION_TOKEN`, `NOTION_DATABASE_ID`
 
 ## 커밋 규칙
 
