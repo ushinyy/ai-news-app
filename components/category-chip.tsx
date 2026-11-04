@@ -26,22 +26,41 @@ function Count({ count }: { count: number }) {
   );
 }
 
+// navigable이 false(편집 모드)이면 링크 대신 같은 모양의 <span>을 그려서, 눌러도 필터 이동이 일어나지 않는다.
 export function CategoryChip({
   href,
   active,
   label,
   count,
+  navigable = true,
+  className = "",
 }: {
   href: string;
   active: boolean;
   label: string;
   count: number;
+  navigable?: boolean;
+  className?: string;
 }) {
+  const classes = `${chipBase} ${active ? chipActive : chipIdle} ${className}`;
+
+  if (!navigable) {
+    return (
+      <span
+        aria-current={active ? "true" : undefined}
+        className={`${classes} cursor-default`}
+      >
+        {label}
+        <span className="ml-1.5 text-xs opacity-60">{count}</span>
+      </span>
+    );
+  }
+
   return (
     <Link
       href={href}
       aria-current={active ? "true" : undefined}
-      className={`${chipBase} ${active ? chipActive : chipIdle}`}
+      className={classes}
     >
       {label}
       <Count count={count} />

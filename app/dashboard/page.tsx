@@ -55,16 +55,7 @@ async function Dashboard({
         ? String(data.filter.id)
         : undefined;
 
-  // 기사도 카테고리도 하나도 없으면 카테고리 바 없이 안내만 보여 준다.
-  if (data.total === 0 && data.categories.length === 0) {
-    return (
-      <EmptyState
-        title="아직 수집한 뉴스가 없어요"
-        description="뉴스를 수집하면 이곳에 카드로 정리돼요."
-      />
-    );
-  }
-
+  // 기사도 카테고리도 없을 때도 카테고리 바(+ 카테고리)는 보여 줘서 첫 카테고리를 만들 수 있게 한다.
   return (
     // 칩을 눌러 이동하는 동안(data-pending) 목록을 흐리게 해 반응을 보여 준다.
     <div className="group/dash">
@@ -75,7 +66,12 @@ async function Dashboard({
         filter={data.filter}
       />
       <div className="transition-opacity delay-150 group-has-[[data-pending=true]]/dash:opacity-60">
-        {data.articles.length === 0 ? (
+        {data.total === 0 ? (
+          <EmptyState
+            title="아직 수집한 뉴스가 없어요"
+            description="뉴스를 수집하면 이곳에 카드로 정리돼요."
+          />
+        ) : data.articles.length === 0 ? (
           <EmptyState
             title="이 카테고리에는 뉴스가 없어요"
             description="다른 카테고리를 고르거나 전체 뉴스를 확인해 보세요."

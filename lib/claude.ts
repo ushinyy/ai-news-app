@@ -1,4 +1,5 @@
 import Anthropic from "@anthropic-ai/sdk";
+import { categoryKey, normalizeCategoryName } from "@/lib/category-name";
 
 const MODEL = "claude-haiku-5-5";
 
@@ -29,10 +30,6 @@ function getClient() {
   }
   client ??= new Anthropic();
   return client;
-}
-
-function normalize(name: string) {
-  return name.replace(/\s+/g, " ").trim().toLowerCase();
 }
 
 // 한 번의 호출로 기사 묶음을 번역·요약·분류한다.
@@ -100,7 +97,7 @@ export async function enrichArticles(
   if (!Array.isArray(raw)) throw new Error("Claude 응답 형식이 올바르지 않아요.");
 
   const byIdx = new Map<number, EnrichResult>();
-  const canonical = new Map(existingCategories.map((c) => [normalize(c), c]));
+  const canonical = new Map(existingCategories.map((c) => [categoryKey(c), c]));
   for (const row of raw) {
     const r = row as Partial<Record<string, unknown>>;
     if (
@@ -113,13 +110,13 @@ export async function enrichArticles(
     }
     const titleKo = r.titleKo.trim();
     const summaryKo = r.summaryKo.trim();
-    const category = r.category.replace(/\s+/g, " ").trim();
+    const category = normalizeCategoryName(r.category);
     if (!titleKo || !summaryKo || !category || byIdx.has(r.idx)) continue;
     // 기존 카테고리와 대소문자·공백만 다르면 기존 이름으로 맞춘다.
     byIdx.set(r.idx, {
       titleKo,
       summaryKo,
-      category: canonical.get(normalize(category)) ?? category,
+      category: canonical.get(categoryKey(category)) ?? category,
     });
   }
 
