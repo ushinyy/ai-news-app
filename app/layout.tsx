@@ -4,6 +4,7 @@ import { Suspense } from "react";
 import { ClerkProvider, Show, UserButton } from "@clerk/nextjs";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
+import { FetchNewsButton } from "@/components/fetch-news-button";
 import { SignInGate } from "@/components/sign-in-gate";
 
 const geistSans = Geist({
@@ -45,7 +46,10 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
                   <h1 className="text-xl font-semibold tracking-tight">
                     <Link href="/dashboard">AI 뉴스 수집기</Link>
                   </h1>
-                  <UserButton />
+                  <div className="flex items-center gap-3">
+                    <FetchNewsButton />
+                    <UserButton />
+                  </div>
                 </div>
               </header>
               {children}
