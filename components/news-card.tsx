@@ -1,3 +1,4 @@
+import { SaveToNotionButton } from "@/components/save-to-notion-button";
 import type { DashboardArticle } from "@/lib/dashboard";
 
 const buttonBase =
@@ -58,18 +59,7 @@ export function NewsCard({ article }: { article: DashboardArticle }) {
         >
           원문보기
         </a>
-        {/* Notion 저장 API가 아직 없어 버튼은 비활성이다. 저장된 기사만 "저장됨"으로 표시한다. */}
-        <button
-          type="button"
-          disabled
-          className={`${buttonBase} ${
-            saved
-              ? "bg-zinc-100 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400"
-              : "bg-indigo-50 text-indigo-700 dark:bg-indigo-500/15 dark:text-indigo-300"
-          }`}
-        >
-          {saved ? "저장됨" : "저장하기"}
-        </button>
+        <SaveToNotionButton articleId={article.id} saved={saved} />
       </div>
     </li>
   );
