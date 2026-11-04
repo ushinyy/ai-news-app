@@ -6,16 +6,23 @@ import { auth } from "@clerk/nextjs/server";
 import { CategoryBar } from "@/components/category-bar";
 import { EmptyState } from "@/components/empty-state";
 import { NewsCard } from "@/components/news-card";
+import { Pagination } from "@/components/pagination";
 import {
-  ARTICLE_LIMIT,
   getDashboardData,
+  PAGE_SIZE,
   parseCategoryFilter,
+  parsePage,
 } from "@/lib/dashboard";
+
+type SearchParams = Promise<{
+  category?: string | string[];
+  page?: string | string[];
+}>;
 
 export default function DashboardPage({
   searchParams,
 }: {
-  searchParams: Promise<{ category?: string | string[] }>;
+  searchParams: SearchParams;
 }) {
   return (
     <main className="mx-auto w-full max-w-6xl flex-1 px-4 sm:px-6">
@@ -29,15 +36,24 @@ export default function DashboardPage({
 async function Dashboard({
   searchParams,
 }: {
-  searchParams: Promise<{ category?: string | string[] }>;
+  searchParams: SearchParams;
 }) {
   const { userId } = await auth();
   if (!userId) return null; // 로그인 모달은 layout이 처리한다.
 
+  const params = await searchParams;
   const data = await getDashboardData(
     userId,
-    parseCategoryFilter((await searchParams).category),
+    parseCategoryFilter(params.category),
+    parsePage(params.page),
   );
+
+  const category =
+    data.filter.type === "none"
+      ? "none"
+      : data.filter.type === "category"
+        ? String(data.filter.id)
+        : undefined;
 
   // 기사도 카테고리도 하나도 없으면 카테고리 바 없이 안내만 보여 준다.
   if (data.total === 0 && data.categories.length === 0) {
@@ -72,11 +88,17 @@ async function Dashboard({
                 <NewsCard key={article.id} article={article} />
               ))}
             </ul>
-            <p className="pb-12 pt-6 text-center text-xs text-zinc-500 dark:text-zinc-400">
-              {data.limited
-                ? `최신 ${ARTICLE_LIMIT}건까지 표시합니다.`
-                : `총 ${data.articles.length}건`}
+            <p className="pt-6 text-center text-xs text-zinc-500 dark:text-zinc-400">
+              총 {data.filteredTotal}건
+              {data.totalPages > 1 &&
+                ` · ${data.page}/${data.totalPages} 페이지 (페이지당 ${PAGE_SIZE}건)`}
             </p>
+            <Pagination
+              page={data.page}
+              totalPages={data.totalPages}
+              category={category}
+            />
+            {data.totalPages <= 1 && <div className="pb-12" />}
           </>
         )}
       </div>

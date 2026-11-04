@@ -27,7 +27,7 @@ export type DashboardCategory = {
   count: number;
 };
 
-export const ARTICLE_LIMIT = 100;
+export const PAGE_SIZE = 9;
 
 // ?category=<id|none> 값을 필터로 바꾼다. 알 수 없는 값은 전체 보기로 처리한다.
 export function parseCategoryFilter(
@@ -39,12 +39,20 @@ export function parseCategoryFilter(
   return { type: "all" };
 }
 
+// ?page=<n> 값을 1 이상의 정수로 바꾼다. 잘못된 값은 1페이지로 처리한다.
+export function parsePage(value: string | string[] | undefined): number {
+  const raw = Array.isArray(value) ? value[0] : value;
+  if (raw && /^\d+$/.test(raw)) return Math.max(1, Number(raw));
+  return 1;
+}
+
 // 호출하는 쪽에서 Clerk userId를 확인한 뒤에만 부를 것. 모든 쿼리는 userId로 한정한다.
 export async function getDashboardData(
   userId: string,
   requestedFilter: CategoryFilter,
+  requestedPage: number,
 ) {
-  const fetchArticles = (filter: CategoryFilter) => {
+  const fetchArticles = (filter: CategoryFilter, page: number) => {
     const conditions: SQL[] = [eq(articles.userId, userId)];
     if (filter.type === "none") conditions.push(isNull(articles.categoryId));
     if (filter.type === "category")
@@ -70,11 +78,14 @@ export async function getDashboardData(
       .orderBy(
         sql`${articles.publishedAt} desc nulls last`,
         desc(articles.createdAt),
+        // 페이지를 넘길 때 순서가 흔들리지 않도록 마지막 기준으로 id를 둔다.
+        desc(articles.id),
       )
-      .limit(ARTICLE_LIMIT);
+      .limit(PAGE_SIZE)
+      .offset((page - 1) * PAGE_SIZE);
   };
 
-  const [categoryRows, totals, requestedRows] = await Promise.all([
+  const [categoryRows, totals] = await Promise.all([
     db
       .select({
         id: categories.id,
@@ -90,7 +101,6 @@ export async function getDashboardData(
       .select({ total: count(), categorized: count(articles.categoryId) })
       .from(articles)
       .where(eq(articles.userId, userId)),
-    fetchArticles(requestedFilter),
   ]);
 
   const { total, categorized } = totals[0];
@@ -102,9 +112,19 @@ export async function getDashboardData(
   const filter: CategoryFilter = unknownCategory
     ? { type: "all" }
     : requestedFilter;
-  const articleRows = unknownCategory
-    ? await fetchArticles(filter)
-    : requestedRows;
+
+  // 선택한 필터에 해당하는 기사 수로 전체 페이지 수를 구한다.
+  const filteredTotal =
+    filter.type === "all"
+      ? total
+      : filter.type === "none"
+        ? total - categorized
+        : (categoryRows.find((c) => c.id === filter.id)?.count ?? 0);
+  const totalPages = Math.max(1, Math.ceil(filteredTotal / PAGE_SIZE));
+  // 범위를 넘어선 페이지(기사 삭제 등)는 마지막 페이지로 맞춘다.
+  const page = Math.min(requestedPage, totalPages);
+
+  const articleRows = await fetchArticles(filter, page);
 
   return {
     filter,
@@ -112,6 +132,8 @@ export async function getDashboardData(
     total,
     uncategorized: total - categorized,
     articles: articleRows satisfies DashboardArticle[],
-    limited: articleRows.length >= ARTICLE_LIMIT,
+    page,
+    totalPages,
+    filteredTotal,
   };
 }
