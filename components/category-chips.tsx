@@ -4,6 +4,7 @@ import { useState } from "react";
 import { AddCategory } from "@/components/add-category";
 import { CategoryChip } from "@/components/category-chip";
 import { ManagedCategoryChip } from "@/components/managed-category-chip";
+import { dashboardHref } from "@/lib/dashboard-url";
 import type { CategoryFilter, DashboardCategory } from "@/lib/dashboard";
 
 // 카테고리 칩 줄. 편집 모드 상태를 칩과 `편집/완료` 버튼이 함께 쓰므로 한 클라이언트 컴포넌트에 둔다.
@@ -13,11 +14,13 @@ export function CategoryChips({
   total,
   uncategorized,
   filter,
+  query,
 }: {
   categories: DashboardCategory[];
   total: number;
   uncategorized: number;
   filter: CategoryFilter;
+  query: string;
 }) {
   const [editRequested, setEditRequested] = useState(false);
   // 편집할 카테고리가 없어지면(예: 마지막 하나를 삭제) 자동으로 편집 모드를 벗어난다.
@@ -26,7 +29,7 @@ export function CategoryChips({
   return (
     <>
       <CategoryChip
-        href="/dashboard"
+        href={dashboardHref({ q: query })}
         active={filter.type === "all"}
         label="전체"
         count={total}
@@ -34,7 +37,7 @@ export function CategoryChips({
       />
       {uncategorized > 0 && (
         <CategoryChip
-          href="/dashboard?category=none"
+          href={dashboardHref({ category: "none", q: query })}
           active={filter.type === "none"}
           label="미분류"
           count={uncategorized}
@@ -47,6 +50,7 @@ export function CategoryChips({
           id={category.id}
           name={category.name}
           count={category.count}
+          query={query}
           active={filter.type === "category" && filter.id === category.id}
           editing={editing}
           mergeTargets={categories

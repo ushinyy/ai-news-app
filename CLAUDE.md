@@ -27,6 +27,10 @@ npx drizzle-kit generate   # 스키마 변경 후 마이그레이션 SQL 생성
 npx drizzle-kit migrate    # 생성된 마이그레이션을 Neon(DATABASE_URL)에 적용
 ```
 
+### 슬래시 명령
+
+- `/news-workflow <브랜치-이름>` (`.claude/commands/news-workflow.md`): 새 기능 개발 워크플로. main 확인 → 브랜치 생성(이름이 없으면 영어 소문자-하이픈으로 제안) → 개발 시작 안내와 기술 스택·컨벤션 재안내 → `완료`/`done` 입력 시 변경 파일 목록·한글 커밋 메시지 제안 후 커밋·main 병합 → 작업 요약.
+
 테스트 러너는 아직 설정되어 있지 않다. 프레임워크: App Router, TypeScript, Tailwind v4, import alias `@/*`, `src/` 없음(`app/`이 루트).
 
 ## 아키텍처 (PRD 기준)
@@ -37,6 +41,7 @@ RSS(TechCrunch AI, The Verge AI) → Claude가 제목 번역·한국어 요약·
 - API: `fetch-news`, `categories`(추가·수정·삭제·병합)는 구현, `articles/[id]/notion`도 구현.
 - DB는 `neon-http` 드라이버라 `db.transaction()`을 쓸 수 없다(오류). 여러 쿼리를 원자적으로 묶을 때는 `db.batch([...])`를 쓴다(병합·삭제가 이 방식).
 - 페이지네이션 URL 규칙: `/dashboard?category=<id|none>&page=<n>`. 1페이지는 `page`를 생략하고, 범위를 넘은 `page`는 마지막 페이지로 맞춘다. 목록 정렬은 발행일 최신순(`published_at desc nulls last`, `created_at`, `id`).
+- 키워드 검색: `?q=`(공백 정리, 100자 제한)를 `lib/dashboard.ts`의 `parseQuery`/`searchCondition`이 처리한다. 공백으로 나눈 단어마다 `titleKo`·`titleOriginal`·`summaryKo` 중 하나에 `ilike`로 포함돼야 한다. URL은 `lib/dashboard-url.ts`의 `dashboardHref`로 만들어 `category`·`q`·`page`를 함께 유지한다. 검색어가 바뀌면 `page`는 1로 돌아간다.
 - 서버 컴포넌트에서 클라이언트 컴포넌트로 함수를 props로 넘길 수 없다(예: `Pagination`은 href를 안에서 만든다).
 - 모든 페이지·API는 Clerk 로그인 필수이고, 모든 데이터는 Clerk `userId`로 분리한다.
 

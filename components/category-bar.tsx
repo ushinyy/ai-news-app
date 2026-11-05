@@ -6,11 +6,13 @@ export function CategoryBar({
   total,
   uncategorized,
   filter,
+  query,
 }: {
   categories: DashboardCategory[];
   total: number;
   uncategorized: number;
   filter: CategoryFilter;
+  query: string;
 }) {
   return (
     <nav aria-label="카테고리" className="flex flex-wrap items-center gap-2 py-6">
@@ -19,6 +21,7 @@ export function CategoryBar({
         total={total}
         uncategorized={uncategorized}
         filter={filter}
+        query={query}
       />
     </nav>
   );

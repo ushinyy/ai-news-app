@@ -6,6 +6,7 @@ import { callCategoryApi } from "@/components/category-api";
 import { CategoryChip } from "@/components/category-chip";
 import { CategoryNameInput } from "@/components/category-name-input";
 import { ConfirmDialog } from "@/components/confirm-dialog";
+import { dashboardHref } from "@/lib/dashboard-url";
 import { normalizeCategoryName } from "@/lib/category-name";
 
 // 카테고리 칩. 편집 모드(editing)일 때만 오른쪽에 ⋯ 메뉴(이름 수정 등)가 붙고, 이때는 칩을 눌러도 이동하지 않는다.
@@ -15,6 +16,7 @@ export function ManagedCategoryChip({
   name,
   count,
   active,
+  query,
   editing,
   mergeTargets,
 }: {
@@ -22,6 +24,8 @@ export function ManagedCategoryChip({
   name: string;
   count: number;
   active: boolean;
+  /** 유지할 검색어 */
+  query: string;
   editing: boolean;
   mergeTargets: { id: number; name: string }[];
 }) {
@@ -150,7 +154,7 @@ export function ManagedCategoryChip({
   if (!editing) {
     return (
       <CategoryChip
-        href={`/dashboard?category=${id}`}
+        href={dashboardHref({ category: String(id), q: query })}
         active={active}
         label={name}
         count={count}
@@ -172,7 +176,7 @@ export function ManagedCategoryChip({
   return (
     <span ref={wrapperRef} className="relative inline-flex items-center">
       <CategoryChip
-        href={`/dashboard?category=${id}`}
+        href={dashboardHref({ category: String(id), q: query })}
         active={active}
         label={name}
         count={count}

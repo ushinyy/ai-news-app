@@ -7,16 +7,20 @@ import { CategoryBar } from "@/components/category-bar";
 import { EmptyState } from "@/components/empty-state";
 import { NewsCard } from "@/components/news-card";
 import { Pagination } from "@/components/pagination";
+import { dashboardHref } from "@/lib/dashboard-url";
+import { SearchForm } from "@/components/search-form";
 import {
   getDashboardData,
   PAGE_SIZE,
   parseCategoryFilter,
   parsePage,
+  parseQuery,
 } from "@/lib/dashboard";
 
 type SearchParams = Promise<{
   category?: string | string[];
   page?: string | string[];
+  q?: string | string[];
 }>;
 
 export default function DashboardPage({
@@ -46,6 +50,7 @@ async function Dashboard({
     userId,
     parseCategoryFilter(params.category),
     parsePage(params.page),
+    parseQuery(params.q),
   );
 
   const category =
@@ -59,17 +64,28 @@ async function Dashboard({
   return (
     // 칩을 눌러 이동하는 동안(data-pending) 목록을 흐리게 해 반응을 보여 준다.
     <div className="group/dash">
+      <SearchForm query={data.q} category={category} />
       <CategoryBar
         categories={data.categories}
         total={data.total}
         uncategorized={data.uncategorized}
         filter={data.filter}
+        query={data.q}
       />
       <div className="transition-opacity delay-150 group-has-[[data-pending=true]]/dash:opacity-60">
         {data.total === 0 ? (
           <EmptyState
             title="아직 수집한 뉴스가 없어요"
             description="뉴스를 수집하면 이곳에 카드로 정리돼요."
+          />
+        ) : data.articles.length === 0 && data.q ? (
+          <EmptyState
+            title={`‘${data.q}’ 검색 결과가 없어요`}
+            description="다른 키워드로 검색하거나 검색어를 지워 보세요."
+            action={{
+              href: dashboardHref({ category }),
+              label: "검색어 지우기",
+            }}
           />
         ) : data.articles.length === 0 ? (
           <EmptyState
@@ -85,7 +101,7 @@ async function Dashboard({
               ))}
             </ul>
             <p className="pt-6 text-center text-xs text-zinc-500 dark:text-zinc-400">
-              총 {data.filteredTotal}건
+              {data.q && `‘${data.q}’ 검색 결과 `}총 {data.filteredTotal}건
               {data.totalPages > 1 &&
                 ` · ${data.page}/${data.totalPages} 페이지 (페이지당 ${PAGE_SIZE}건)`}
             </p>
@@ -93,6 +109,7 @@ async function Dashboard({
               page={data.page}
               totalPages={data.totalPages}
               category={category}
+              q={data.q}
             />
             {data.totalPages <= 1 && <div className="pb-12" />}
           </>

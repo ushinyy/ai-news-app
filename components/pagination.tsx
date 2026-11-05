@@ -2,6 +2,7 @@
 
 import Link, { useLinkStatus } from "next/link";
 import type { ReactNode } from "react";
+import { dashboardHref } from "@/lib/dashboard-url";
 
 const base =
   "inline-flex min-h-10 min-w-10 items-center justify-center rounded-lg border px-3 text-sm transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 sm:min-h-9 sm:min-w-9";
@@ -64,23 +65,21 @@ export function Pagination({
   page,
   totalPages,
   category,
+  q,
 }: {
   page: number;
   totalPages: number;
   /** 유지할 카테고리 필터 값("none" 또는 카테고리 id). 전체 보기면 생략한다. */
   category?: string;
+  /** 유지할 검색어 */
+  q?: string;
 }) {
   if (totalPages <= 1) return null;
 
   // 카테고리 필터를 유지한 채 페이지만 바꾼다. 1페이지는 page 파라미터를 생략한다.
   // (서버 컴포넌트에서 함수를 넘길 수 없어 href는 여기서 만든다.)
-  const hrefFor = (target: number) => {
-    const query = new URLSearchParams();
-    if (category) query.set("category", category);
-    if (target > 1) query.set("page", String(target));
-    const qs = query.toString();
-    return qs ? `/dashboard?${qs}` : "/dashboard";
-  };
+  const hrefFor = (target: number) =>
+    dashboardHref({ category, q, page: target });
 
   return (
     <nav

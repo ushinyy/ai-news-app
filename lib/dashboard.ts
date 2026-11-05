@@ -1,4 +1,4 @@
-import { and, count, desc, eq, isNull, sql } from "drizzle-orm";
+import { and, count, desc, eq, ilike, isNull, or, sql } from "drizzle-orm";
 import type { SQL } from "drizzle-orm";
 import { db } from "@/db";
 import { articles, categories } from "@/db/schema";
@@ -28,6 +28,29 @@ export type DashboardCategory = {
 };
 
 export const PAGE_SIZE = 9;
+export const MAX_QUERY_LENGTH = 100;
+
+// ?q=<검색어> 값을 공백을 정리한 문자열로 바꾼다. 비어 있으면 빈 문자열.
+export function parseQuery(value: string | string[] | undefined): string {
+  const raw = Array.isArray(value) ? value[0] : value;
+  return (raw ?? "").replace(/\s+/g, " ").trim().slice(0, MAX_QUERY_LENGTH);
+}
+
+// 검색어를 공백으로 나눈 단어마다, 한글 제목·원문 제목·한글 요약 중 하나에 들어 있어야 한다(대소문자 무시).
+function searchCondition(q: string): SQL | undefined {
+  const terms = q.split(" ").filter(Boolean);
+  return and(
+    ...terms.map((term) => {
+      // LIKE 와일드카드(% _ \)가 검색어에 있으면 글자 그대로 찾는다.
+      const pattern = `%${term.replace(/[\\%_]/g, "\\$&")}%`;
+      return or(
+        ilike(articles.titleKo, pattern),
+        ilike(articles.titleOriginal, pattern),
+        ilike(articles.summaryKo, pattern),
+      );
+    }),
+  );
+}
 
 // ?category=<id|none> 값을 필터로 바꾼다. 알 수 없는 값은 전체 보기로 처리한다.
 export function parseCategoryFilter(
@@ -51,12 +74,20 @@ export async function getDashboardData(
   userId: string,
   requestedFilter: CategoryFilter,
   requestedPage: number,
+  q = "",
 ) {
-  const fetchArticles = (filter: CategoryFilter, page: number) => {
+  const filterConditions = (filter: CategoryFilter) => {
     const conditions: SQL[] = [eq(articles.userId, userId)];
     if (filter.type === "none") conditions.push(isNull(articles.categoryId));
     if (filter.type === "category")
       conditions.push(eq(articles.categoryId, filter.id));
+    const search = q ? searchCondition(q) : undefined;
+    if (search) conditions.push(search);
+    return conditions;
+  };
+
+  const fetchArticles = (filter: CategoryFilter, page: number) => {
+    const conditions = filterConditions(filter);
 
     return db
       .select({
@@ -113,9 +144,16 @@ export async function getDashboardData(
     ? { type: "all" }
     : requestedFilter;
 
-  // 선택한 필터에 해당하는 기사 수로 전체 페이지 수를 구한다.
-  const filteredTotal =
-    filter.type === "all"
+  // 선택한 필터(와 검색어)에 해당하는 기사 수로 전체 페이지 수를 구한다.
+  // 카테고리 칩의 개수는 검색과 무관한 전체 개수라, 검색 중에는 따로 센다.
+  const filteredTotal = q
+    ? (
+        await db
+          .select({ n: count() })
+          .from(articles)
+          .where(and(...filterConditions(filter)))
+      )[0].n
+    : filter.type === "all"
       ? total
       : filter.type === "none"
         ? total - categorized
@@ -128,6 +166,7 @@ export async function getDashboardData(
 
   return {
     filter,
+    q,
     categories: categoryRows satisfies DashboardCategory[],
     total,
     uncategorized: total - categorized,
