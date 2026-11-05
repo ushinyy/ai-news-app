@@ -1,3 +1,4 @@
+import { DeleteArticleButton } from "@/components/delete-article-button";
 import { SaveToNotionButton } from "@/components/save-to-notion-button";
 import type { DashboardArticle } from "@/lib/dashboard";
 
@@ -26,9 +27,10 @@ export function NewsCard({ article }: { article: DashboardArticle }) {
   const saved = article.notionPageId !== null;
 
   return (
-    <li className="flex flex-col rounded-xl border border-zinc-200 bg-white p-5 transition hover:shadow-md dark:border-zinc-800 dark:bg-zinc-900">
-      {/* 좁은 화면에서 뱃지와 출처·날짜가 부딪히면 줄바꿈하고, 긴 카테고리명은 말줄임 처리한다. */}
-      <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1">
+    <li className="relative flex flex-col rounded-xl border border-zinc-200 bg-white p-5 transition hover:shadow-md dark:border-zinc-800 dark:bg-zinc-900">
+      <DeleteArticleButton articleId={article.id} />
+      {/* 좁은 화면에서 뱃지와 출처·날짜가 부딪히면 줄바꿈하고, 긴 카테고리명은 말줄임 처리한다. 오른쪽은 삭제 버튼 자리. */}
+      <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1 pr-7">
         <span
           className={`max-w-full truncate rounded-full px-2.5 py-0.5 text-xs font-medium ${
             article.categoryName
